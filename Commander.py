@@ -13,7 +13,8 @@ class Option(object):
         self.description = desc
         self.required = '<' in flags
         self.optional = '[' in flags
-        self.isflag = not self.required and not self.optional
+        self.variadic = '...' in flags
+        self.isflag = not self.required and not self.optional and not self.variadic
         self.parse = parse
 
         match = re.match(r'(?:(-[a-zA-Z])[,\| ]+)?(--([^\s]+))', flags)
@@ -108,7 +109,7 @@ class Program(object):
                     unknownOpts.append(arg)
                     continue
                 else:
-                    print >> sys.stderr, 'error: unexpected argument: \'{0}\''.format(arg)
+                    print >> sys.stderr, 'error: unexpected argument: {0}'.format(arg)
                     sys.exit(1)
 
             if opt.name == 'help':
@@ -116,8 +117,12 @@ class Program(object):
                 sys.exit(0)
 
             if opt.required and (len(args) == 0 or args[0][0] == '-'):
-                print >> sys.stderr, 'error: \'{0}\' missing argument'.format(opt.long)
+                print >> sys.stderr, 'error: missing argument: {0}'.format(opt.long)
                 sys.exit(1)
+
+            if opt.variadic:
+                self.parseVariadic(opt, args)
+                break
 
             # if option is required, or option is optional and next arg is not a flag
             if opt.required or (opt.optional and len(args) > 0 and not args[0][0] == '-'):
@@ -133,6 +138,16 @@ class Program(object):
             if opt.isflag:
                 setattr(self.options, opt.name, True)
 
+        return self
+
+
+    def parseVariadic(self, opt, args):
+        for arg in args:
+            if arg[0] == '-':
+                print >> sys.stderr, 'error: variadic argument must be last: {0}'.format(opt.long)
+                sys.exit(1)
+
+        setattr(self.options, opt.name, args)
         return self
 
 
