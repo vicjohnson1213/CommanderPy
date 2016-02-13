@@ -2,7 +2,6 @@ import sys
 import re
 
 class Option(object):
-    """docstring for Option"""
     def __init__(self, raw_flags, description, default, parse):
         super(Option, self).__init__()
         self.raw_flags = raw_flags
@@ -38,12 +37,11 @@ class Option(object):
 
 
 class Argument(object):
-    """docstring for Argument"""
     def __init__(self, raw_arg, parse):
         super(Argument, self).__init__()
 
         if not re.match(r'^[\[\<][a-zA-Z0-9]+[\]\>]$', raw_arg):
-            print 'BAD ARGUMENT DESCRIPTION'
+            print >> sys.stderr, 'error: invalid argument description: {}'.format(raw_arg)
 
         self.raw_arg = raw_arg
         self.parse = parse
@@ -60,7 +58,6 @@ class Argument(object):
         
 
 class Program(object):
-    """docstring for Program"""
     def __init__(self):
         super(Program, self).__init__()
         self.possible_options = []
@@ -150,9 +147,6 @@ class Program(object):
                 last_opt = opt
 
             else:
-                # TODO: if the last option was optional and there is a required
-                # argument left and there is only one more element left in raw_args
-                # then give the last raw_arg to the argument, not the option
                 if last_opt:
                     print last_opt
                     if last_opt.parse:
