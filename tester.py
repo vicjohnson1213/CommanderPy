@@ -12,8 +12,10 @@ program = (Program()
     .option('-o, --other [optionalArg]',
         description='Some description for waht this option does',
         default='default value')
-    
+
     .option('-f, --force', description='Force execution')
+    .allowUnknownOptions()
+    .noHelp()
     .parse(sys.argv))
 
 print 'opts: ', program.options

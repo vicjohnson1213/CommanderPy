@@ -70,6 +70,8 @@ class Program(object):
         self.usage_str = ''
         self.name_str = ''
         self.description_str = ''
+        self.allowUnknown = False
+        self.addHelp = True
 
     def usage(self, usage):
         self.usage_str = usage
@@ -91,6 +93,14 @@ class Program(object):
         self.arguments[arg.name] = None
         return self
 
+    def allowUnknownOptions(self):
+        self.allowUnknown = True
+        return self
+
+    def noHelp(self):
+        self.addHelp = False
+        return self
+
     def find_option(self, flag):
         for opt in self.possible_options:
             if opt.flag_match(flag):
@@ -100,11 +110,12 @@ class Program(object):
         raw_args = self.normalize(raw_args[1:])
         unknown_args = []
 
-        self.possible_options.append(Option('-h, --help', 'Display this help and usage information.', None, None))
+        if self.addHelp:
+            self.possible_options.append(Option('-h, --help', 'Display this help and usage information.', None, None))
 
-        if '-h' in raw_args:
-            self.displayHelp()
-            sys.exit(0)
+            if '-h' in raw_args:
+                self.displayHelp()
+                sys.exit(0)
 
         last_opt = None
 
@@ -115,17 +126,21 @@ class Program(object):
                 opt = self.find_option(arg)
 
                 if last_opt and last_opt.variatic:
-                    print >> sys.stderr, 'error: variadic option must come last: {0}'.format(last_opt.long)
+                    print >> sys.stderr, 'error: variadic option must come last: {}'.format(last_opt.long)
                     sys.exit(1)
 
                 if last_opt and last_opt.required:
-                    print >> sys.stderr, 'error: option missing required argument: {0}'.format(last_opt.long)
+                    print >> sys.stderr, 'error: option missing required argument: {}'.format(last_opt.long)
                     sys.exit(1)
 
                 if not opt:
-                    unknown_args.append(arg)
-                    last_opt = None
-                    continue
+                    if self.allowUnknown:
+                        unknown_args.append(arg)
+                        last_opt = None
+                        continue
+                    else:
+                        print >> sys.stderr, 'error: unknown option: {}'.format(arg)
+                        sys.exit(1)
 
                 if opt.isFlag:
                     self.options[opt.name] = True
@@ -144,7 +159,7 @@ class Program(object):
                         try:
                             arg = last_opt.parse(arg)
                         except:
-                            print >> sys.stderr, 'error: could not parse argument: {0}'.format(arg)
+                            print >> sys.stderr, 'error: could not parse argument: {}'.format(arg)
                             sys.exit(1)
 
                     if not last_opt.variatic:
@@ -165,7 +180,7 @@ class Program(object):
                     try:
                         arg = next_arg.parse(arg)
                     except:
-                        print >> sys.stderr, 'error: could not parse argument: {0}'.format(arg)
+                        print >> sys.stderr, 'error: could not parse argument: {}'.format(arg)
                         sys.exit(1)
 
                 self.arguments[next_arg.name] = arg
