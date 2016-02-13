@@ -3,7 +3,7 @@ import re
 
 class Option(object):
     """docstring for Option"""
-    def __init__(self, raw_flags, description, parse, default):
+    def __init__(self, raw_flags, description, default, parse):
         super(Option, self).__init__()
         self.raw_flags = raw_flags
         self.description = description
@@ -67,15 +67,22 @@ class Program(object):
         self.possible_arguments = []
         self.options = {}
         self.arguments = {}
+        self.usage_str = ''
+        self.name_str = ''
+        self.description_str = ''
+
+    def usage(self, usage):
+        self.usage_str = usage
+        return self
 
     def description(self, desc):
-        self.desc = desc
+        self.description_str = desc
         return self
 
     def option(self, flags, description=None, default=None, parse=None):
         opt = Option(flags, description, default, parse)
         self.possible_options.append(opt)
-        self.options[opt.name] = None
+        self.options[opt.name] = default or None
         return self
 
     def argument(self, arg, parse=None):
@@ -92,6 +99,12 @@ class Program(object):
     def parse(self, raw_args):
         raw_args = self.normalize(raw_args[1:])
         unknown_args = []
+
+        self.possible_options.append(Option('-h, --help', 'Display this help and usage information.', None, None))
+
+        if '-h' in raw_args:
+            self.displayHelp()
+            sys.exit(0)
 
         last_opt = None
 
@@ -126,6 +139,7 @@ class Program(object):
                 # argument left and there is only one more element left in raw_args
                 # then give the last raw_arg to the argument, not the option
                 if last_opt:
+                    print last_opt
                     if last_opt.parse:
                         try:
                             arg = last_opt.parse(arg)
@@ -182,3 +196,31 @@ class Program(object):
                 new_args.append(arg)
 
         return new_args
+
+    def displayHelp(self):
+        args = self.arguments.values()
+
+        flags = []
+        descs = []
+
+        max_len = 0
+
+        for opt in self.possible_options:
+            flags.append(opt.raw_flags)
+            descs.append(opt.description)
+            max_len = max(max_len, len(opt.raw_flags))
+
+        print
+
+        if self.usage_str:
+            print 'USAGE: {}'.format(self.usage_str)
+            print
+
+        if self.description_str:
+            print self.description_str
+            print
+
+        print 'OPTIONS:'
+        for fs, d in zip(flags, descs):
+            print '  {}'.format(fs).ljust(max_len + 5) + d
+        print
