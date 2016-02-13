@@ -1,177 +1,184 @@
 import sys
 import re
 
-class OptContainer(object):
-    """docstring for OptContainer"""
-    pass   
-
 class Option(object):
     """docstring for Option"""
-    def __init__(self, flags, desc, parse):
+    def __init__(self, raw_flags, description, parse, default):
         super(Option, self).__init__()
-        self.flags = flags
-        self.description = desc
-        self.required = '<' in flags
-        self.optional = '[' in flags
-        self.variadic = '...' in flags
-        self.isflag = not self.required and not self.optional and not self.variadic
+        self.raw_flags = raw_flags
+        self.description = description
         self.parse = parse
+        self.default = default
 
-        match = re.match(r'(?:(-[a-zA-Z])[,\| ]+)?(--([^\s]+))', flags)
+        self.required = '<' in raw_flags
+        self.optional = '[' in raw_flags
+        self.variatic = '...' in raw_flags
+        self.isFlag = not self.required and not self.optional
 
-        if match:
-            self.short = match.group(1)
-            self.long = match.group(2)
+        parts = re.split(r'[, |]+', raw_flags)
 
-            name = match.group(3)
-            lowers = map(lambda s: s.lower(), re.split(r'\W+', name))
-            self.name = '_'.join(lowers)
+        for part in parts:
+            if part[:2] == '--':
+                self.long = part
+            elif part[0] == '-':
+                self.short = part
+
+        name = re.split(r'[^a-zA-Z0-9]+', self.long[2:])
+        name = map(lambda s: s.lower(), name)
+        self.name = '_'.join(name)
+
+    def flag_match(self, flag):
+        return flag == self.short or flag == self.long
 
     def __str__(self):
         return str((self.short, self.long, self.name))
 
     def __repr__(self):
-        return str((self.short, self.long, self.name))
+        return str(self)
 
-    def isOption(self, opt):
-        return opt == self.short or opt == self.long     
 
+class Argument(object):
+    """docstring for Argument"""
+    def __init__(self, raw_arg, parse):
+        super(Argument, self).__init__()
+
+        if not re.match(r'^[\[\<][a-zA-Z0-9]+[\]\>]$', raw_arg):
+            print 'BAD ARGUMENT DESCRIPTION'
+
+        self.raw_arg = raw_arg
+        self.parse = parse
+        self.required = '<' in raw_arg
+        self.optional = '[' in raw_arg
+        self.variatic = '...' in raw_arg
+        self.name = raw_arg[1:-1]
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return str(self)
+        
 
 class Program(object):
     """docstring for Program"""
     def __init__(self):
         super(Program, self).__init__()
-        self.args = []
-        self.options = OptContainer()
-        self.usage_str = ''
-        self.allowUnknown = False
-
-
-    def option(self, flags, description='', parse=None):
-        opt = Option(flags, description, parse)
-        self.args.append(opt)
-        setattr(self.options, opt.name, None)
-
-        return self
-
-
-    def usage(self, usage):
-        self.usage_str = usage
-        return self
-
+        self.possible_options = []
+        self.possible_arguments = []
+        self.options = {}
+        self.arguments = {}
 
     def description(self, desc):
         self.desc = desc
         return self
 
-    def allowUnknownOptions(self):
-        self.allowUnknown = True
+    def option(self, flags, description=None, default=None, parse=None):
+        opt = Option(flags, description, default, parse)
+        self.possible_options.append(opt)
+        self.options[opt.name] = None
         return self
 
+    def argument(self, arg, parse=None):
+        arg = Argument(arg, parse)
+        self.possible_arguments.append(arg)
+        self.arguments[arg.name] = None
+        return self
 
-    def normalizeArgs(self, args):
-        newArgs = []
-
-        for arg in args:
-            if arg[:2] == '--':
-                parts = arg.split('=')
-                newArgs += parts
-
-            elif arg[0] == '-':
-                parts = list(arg[1:])
-                parts = map(lambda p: '-' + p, parts)
-                newArgs += parts
-
-            else:
-                newArgs.append(arg)
-
-        return newArgs
-
-
-    def optionFor(self, flag):
-        for opt in self.args:
-            if opt.isOption(flag):
+    def find_option(self, flag):
+        for opt in self.possible_options:
+            if opt.flag_match(flag):
                 return opt
 
+    def parse(self, raw_args):
+        raw_args = self.normalize(raw_args[1:])
+        unknown_args = []
 
-    def parse(self, args):
-        args = self.normalizeArgs(args[1:])
-        unknownOpts = []
+        last_opt = None
 
-        self.args.append(Option('-h, --help', 'Display help and usage information.', None))
+        while raw_args:
+            arg = raw_args.pop(0)
 
-        while args:
-            arg = args.pop(0)
-            opt = self.optionFor(arg)
+            if arg[0] == '-':
+                opt = self.find_option(arg)
 
-            if not opt:
-                if self.allowUnknown:
-                    unknownOpts.append(arg)
-                    continue
-                else:
-                    print >> sys.stderr, 'error: unexpected argument: {0}'.format(arg)
+                if last_opt and last_opt.variatic:
+                    print >> sys.stderr, 'error: variadic option must come last: {0}'.format(last_opt.long)
                     sys.exit(1)
 
-            if opt.name == 'help':
-                self.printHelp()
-                sys.exit(0)
+                if last_opt and last_opt.required:
+                    print >> sys.stderr, 'error: option missing required argument: {0}'.format(last_opt.long)
+                    sys.exit(1)
 
-            if opt.required and (len(args) == 0 or args[0][0] == '-'):
-                print >> sys.stderr, 'error: missing argument: {0}'.format(opt.long)
-                sys.exit(1)
+                if not opt:
+                    unknown_args.append(arg)
+                    last_opt = None
+                    continue
 
-            if opt.variadic:
-                self.parseVariadic(opt, args)
-                break
+                if opt.isFlag:
+                    self.options[opt.name] = True
+                    last_opt = None
+                    continue
 
-            # if option is required, or option is optional and next arg is not a flag
-            if opt.required or (opt.optional and len(args) > 0 and not args[0][0] == '-'):
+                last_opt = opt
 
-                val = args.pop(0)
+            else:
+                # TODO: if the last option was optional and there is a required
+                # argument left and there is only one more element left in raw_args
+                # then give the last raw_arg to the argument, not the option
+                if last_opt:
+                    if last_opt.parse:
+                        try:
+                            arg = last_opt.parse(arg)
+                        except:
+                            print >> sys.stderr, 'error: could not parse argument: {0}'.format(arg)
+                            sys.exit(1)
 
-                if opt.parse:
-                    val = opt.parse(val)
+                    if not last_opt.variatic:
+                        self.options[last_opt.name] = arg
+                        last_opt = None
+                        continue
+                    elif last_opt.variatic:
+                        if self.options[last_opt.name]:
+                            self.options[last_opt.name].append(arg)
+                        else:
+                            self.options[last_opt.name] = [arg]
 
-                setattr(self.options, opt.name, val)
-                continue
+                        continue
 
-            if opt.isflag:
-                setattr(self.options, opt.name, True)
+                next_arg = self.possible_arguments.pop(0)
+
+                if next_arg.parse:
+                    try:
+                        arg = next_arg.parse(arg)
+                    except:
+                        print >> sys.stderr, 'error: could not parse argument: {0}'.format(arg)
+                        sys.exit(1)
+
+                self.arguments[next_arg.name] = arg
+
+        if self.possible_arguments and self.possible_arguments[0].required:
+            print >> sys.stderr, 'error: missing required argument'
+            sys.exit(1)
 
         return self
 
+    def normalize(self, raw_args):
+        new_args = []
 
-    def parseVariadic(self, opt, args):
-        for arg in args:
-            if arg[0] == '-':
-                print >> sys.stderr, 'error: variadic argument must be last: {0}'.format(opt.long)
-                sys.exit(1)
+        while raw_args:
+            arg = raw_args.pop(0)
 
-        setattr(self.options, opt.name, args)
-        return self
+            if arg[:2] == '--':
+                parts = arg[2:].split('=')
+                new_args.append('--' + parts[0])
 
+                if len(parts) > 1:
+                    new_args.append(parts[1])
 
-    def printHelp(self):
-        flags = []
-        descs = []
+            elif arg[0] == '-':
+                new_args += map(lambda s: '-' + s, list(arg[1:]))
 
-        for opt in self.args:
-            flags.append(opt.flags)
-            descs.append(opt.description)
+            else:
+                new_args.append(arg)
 
-        maxLen = max(map(len, flags)) + 2
-
-        print
-
-        if self.usage_str:
-            print '  Usage: ' + self.usage_str
-            print
-
-        if self.desc:
-            print '  ' + self.desc
-            print
-
-        for row in zip(flags, descs):
-            print '  ' + ''.join(word.ljust(maxLen) for word in row)
-
-        print
+        return new_args

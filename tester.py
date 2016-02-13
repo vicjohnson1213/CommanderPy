@@ -2,13 +2,10 @@ from Commander import Program
 import sys
 
 program = Program() \
-    .usage('program [flags]') \
-    .description('Some description of what this program does and such.') \
-    .option('-f, --force', description='Force the operation.') \
-    .option('-t, --thing [thing...]', description='Something to something with', parse=float) \
-    .option('--version') \
-    .allowUnknownOptions() \
+    .argument('<first>', parse=float) \
+    .option('-t, --thing <fuck>', description='Some description for waht this fucker does') \
+    .option('-f, --force', description='Force that shit') \
     .parse(sys.argv)
 
-print program.options.thing
-print program.options.force
+print 'opts', program.options
+print 'args', program.arguments
