@@ -6,13 +6,8 @@ class Option(object):
         super(Option, self).__init__()
         self.raw_flags = raw_flags
         self.description = description
-        self.parse = parse
         self.default = default
-
-        self.required = '<' in raw_flags
-        self.optional = '[' in raw_flags
-        self.variatic = '...' in raw_flags
-        self.isFlag = not self.required and not self.optional
+        self.arguments = []
 
         parts = re.split(r'[, |]+', raw_flags)
 
@@ -21,6 +16,10 @@ class Option(object):
                 self.long = part
             elif part[0] == '-':
                 self.short = part
+            else:
+                self.arguments.append(Argument(part, parse))
+
+        self.isFlag = len(self.arguments) == 0
 
         name = re.split(r'[^a-zA-Z0-9]+', self.long[2:])
         name = map(lambda s: s.lower(), name)
@@ -28,6 +27,9 @@ class Option(object):
 
     def flag_match(self, flag):
         return flag == self.short or flag == self.long
+
+    def has_required_arg(self):
+        return any(arg.required for arg in self.arguments)
 
     def __str__(self):
         return str((self.short, self.long, self.name))
@@ -37,18 +39,22 @@ class Option(object):
 
 
 class Argument(object):
-    def __init__(self, raw_arg, parse):
+    def __init__(self, raw_name, parse):
         super(Argument, self).__init__()
 
-        if not re.match(r'^[\[\<][a-zA-Z0-9]+[\]\>]$', raw_arg):
-            print >> sys.stderr, 'error: invalid argument description: {}'.format(raw_arg)
+        if not re.match(r'^[\[\<][a-zA-Z0-9]+(?:\.\.\.)?[\]\>]$', raw_name):
+            print >> sys.stderr, 'error: invalid argument description: {}'.format(raw_name)
 
-        self.raw_arg = raw_arg
+        self.raw_name = raw_name
         self.parse = parse
-        self.required = '<' in raw_arg
-        self.optional = '[' in raw_arg
-        self.variatic = '...' in raw_arg
-        self.name = raw_arg[1:-1]
+        self.required = '<' in raw_name
+        self.optional = '[' in raw_name
+        self.variadic = '...' in raw_name
+
+        if self.variadic:
+            self.name = raw_name[1:-4]
+        else:
+            self.name = raw_name[1:-1]
 
     def __str__(self):
         return self.name
@@ -62,12 +68,13 @@ class Program(object):
         super(Program, self).__init__()
         self.possible_options = []
         self.possible_arguments = []
+        self.unknown_args = []
         self.options = {}
         self.arguments = {}
         self.usage_str = ''
         self.name_str = ''
         self.description_str = ''
-        self.allowUnknown = False
+        self.allow_unknown = False
         self.addHelp = True
 
     def usage(self, usage):
@@ -90,8 +97,11 @@ class Program(object):
         self.arguments[arg.name] = None
         return self
 
-    def allowUnknownOptions(self):
-        self.allowUnknown = True
+    def has_required_arg(self):
+        return any(arg.required for arg in self.possible_arguments)
+
+    def allow_unknown_options(self):
+        self.allow_unknown = True
         return self
 
     def noHelp(self):
@@ -105,7 +115,6 @@ class Program(object):
 
     def parse(self, raw_args):
         raw_args = self.normalize(raw_args[1:])
-        unknown_args = []
 
         if self.addHelp:
             self.possible_options.append(Option('-h, --help', 'Display this help and usage information.', None, None))
@@ -117,69 +126,74 @@ class Program(object):
         last_opt = None
 
         while raw_args:
-            arg = raw_args.pop(0)
+            raw_arg = raw_args.pop(0)
 
-            if arg[0] == '-':
-                opt = self.find_option(arg)
+            if raw_arg[0] == '-':
 
-                if last_opt and last_opt.variatic:
-                    print >> sys.stderr, 'error: variadic option must come last: {}'.format(last_opt.long)
-                    sys.exit(1)
+                opt = self.find_option(raw_arg)
 
-                if last_opt and last_opt.required:
+                if not opt:
+                    if self.allow_unknown:
+                        self.unknown_args.append(raw_arg)
+                    else:
+                        print >> sys.stderr, 'error: unknown option: {}'.format(raw_arg)
+                        sys.exit(1)
+
+                last_opt_fulfilled = (last_opt and
+                    len(last_opt.arguments) > 0 and
+                    last_opt.arguments[0].variadic and
+                    self.options[last_opt.name] and
+                    len(self.options[last_opt.name]) > 0)
+
+                if last_opt and last_opt.has_required_arg() and not last_opt_fulfilled:
                     print >> sys.stderr, 'error: option missing required argument: {}'.format(last_opt.long)
                     sys.exit(1)
 
-                if not opt:
-                    if self.allowUnknown:
-                        unknown_args.append(arg)
-                        last_opt = None
-                        continue
-                    else:
-                        print >> sys.stderr, 'error: unknown option: {}'.format(arg)
-                        sys.exit(1)
-
                 if opt.isFlag:
                     self.options[opt.name] = True
-                    last_opt = None
-                    continue
 
                 last_opt = opt
 
             else:
-                if last_opt:
-                    print last_opt
-                    if last_opt.parse:
-                        try:
-                            arg = last_opt.parse(arg)
-                        except:
-                            print >> sys.stderr, 'error: could not parse argument: {}'.format(arg)
-                            sys.exit(1)
 
-                    if not last_opt.variatic:
-                        self.options[last_opt.name] = arg
-                        last_opt = None
-                        continue
-                    elif last_opt.variatic:
-                        if self.options[last_opt.name]:
-                            self.options[last_opt.name].append(arg)
+                if not last_opt or len(last_opt.arguments) == 0:
+                    new_arg = self.possible_arguments[0]
+
+                    if new_arg.variadic:
+                        if len(self.possible_arguments) > 1:
+                            print >> sys.stderr, 'error: variadic arguments must be last: {}'.format(new_arg.raw_name)
+                            sys.exit(0)
+
+                        if self.arguments[new_arg.name]:
+                            self.arguments[new_arg.name].append(raw_arg)
                         else:
-                            self.options[last_opt.name] = [arg]
+                            self.arguments[new_arg.name] = [raw_arg]
 
-                        continue
+                    else:
+                        self.arguments[new_arg.name] = raw_arg
+                        self.possible_arguments.pop(0)
 
-                next_arg = self.possible_arguments.pop(0)
+                else:
+                    if last_opt.arguments[0].variadic:
+                        if len(last_opt.arguments) > 1:
+                            print >> sys.stderr, 'error: options with variadic arguments must be last: {}'.format(last_opt.long)
+                            sys.exit(0)
 
-                if next_arg.parse:
-                    try:
-                        arg = next_arg.parse(arg)
-                    except:
-                        print >> sys.stderr, 'error: could not parse argument: {}'.format(arg)
-                        sys.exit(1)
+                        if self.options[last_opt.name]:
+                            self.options[last_opt.name].append(raw_arg)
+                        else:
+                            self.options[last_opt.name] = [raw_arg]
+                    else:
+                        self.options[last_opt.name] = raw_arg
+                    
 
-                self.arguments[next_arg.name] = arg
+        last_arg = self.possible_arguments[0]
+        last_arg_fulfilled = (len(self.possible_arguments) > 0 and
+            last_arg.variadic and
+            self.arguments[last_arg.name] and
+            len(self.arguments[last_arg.name]) > 0)
 
-        if self.possible_arguments and self.possible_arguments[0].required:
+        if self.has_required_arg() and not last_arg_fulfilled:
             print >> sys.stderr, 'error: missing required argument'
             sys.exit(1)
 
