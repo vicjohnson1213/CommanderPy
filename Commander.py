@@ -160,32 +160,17 @@ class Program(object):
                     new_arg = self.possible_arguments[0]
 
                     if new_arg.variadic:
-                        if len(self.possible_arguments) > 1:
-                            print >> sys.stderr, 'error: variadic arguments must be last: {}'.format(new_arg.raw_name)
-                            sys.exit(0)
-
-                        if self.arguments[new_arg.name]:
-                            self.arguments[new_arg.name].append(raw_arg)
-                        else:
-                            self.arguments[new_arg.name] = [raw_arg]
-
+                        self.set_variadic_argument(raw_arg, new_arg.name, self.arguments, self.possible_arguments)
                     else:
                         self.arguments[new_arg.name] = raw_arg
                         self.possible_arguments.pop(0)
 
                 else:
                     if last_opt.arguments[0].variadic:
-                        if len(last_opt.arguments) > 1:
-                            print >> sys.stderr, 'error: options with variadic arguments must be last: {}'.format(last_opt.long)
-                            sys.exit(0)
-
-                        if self.options[last_opt.name]:
-                            self.options[last_opt.name].append(raw_arg)
-                        else:
-                            self.options[last_opt.name] = [raw_arg]
+                        self.set_variadic_argument(raw_arg, last_opt.name, self.options, last_opt.arguments)
                     else:
                         self.options[last_opt.name] = raw_arg
-                    
+
 
         last_arg = self.possible_arguments[0]
         last_arg_fulfilled = (len(self.possible_arguments) > 0 and
@@ -198,6 +183,16 @@ class Program(object):
             sys.exit(1)
 
         return self
+
+    def set_variadic_argument(self, raw_arg, name, parsed_arg_list, possible_arg_list):
+        if len(possible_arg_list) > 1:
+            print >> sys.stderr, 'error: variadic arguments must be last: {}'.format(new_arg.raw_name)
+            sys.exit(0)
+
+        if parsed_arg_list[name]:
+            parsed_arg_list[name].append(raw_arg)
+        else:
+            parsed_arg_list[name] = [raw_arg]
 
     def normalize(self, raw_args):
         new_args = []
