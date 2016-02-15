@@ -114,6 +114,16 @@ class Program(object):
                 return opt
 
     def parse(self, raw_args):
+        def set_variadic_argument(raw_arg, name, parsed_arg_list, possible_arg_list):
+            if len(possible_arg_list) > 1:
+                print >> sys.stderr, 'error: variadic arguments must be last: {}'.format(new_arg.raw_name)
+                sys.exit(0)
+
+            if parsed_arg_list[name]:
+                parsed_arg_list[name].append(raw_arg)
+            else:
+                parsed_arg_list[name] = [raw_arg]
+
         raw_args = self.normalize(raw_args[1:])
 
         if self.addHelp:
@@ -160,14 +170,14 @@ class Program(object):
                     new_arg = self.possible_arguments[0]
 
                     if new_arg.variadic:
-                        self.set_variadic_argument(raw_arg, new_arg.name, self.arguments, self.possible_arguments)
+                        set_variadic_argument(raw_arg, new_arg.name, self.arguments, self.possible_arguments)
                     else:
                         self.arguments[new_arg.name] = raw_arg
                         self.possible_arguments.pop(0)
 
                 else:
                     if last_opt.arguments[0].variadic:
-                        self.set_variadic_argument(raw_arg, last_opt.name, self.options, last_opt.arguments)
+                        set_variadic_argument(raw_arg, last_opt.name, self.options, last_opt.arguments)
                     else:
                         self.options[last_opt.name] = raw_arg
 
@@ -183,16 +193,6 @@ class Program(object):
             sys.exit(1)
 
         return self
-
-    def set_variadic_argument(self, raw_arg, name, parsed_arg_list, possible_arg_list):
-        if len(possible_arg_list) > 1:
-            print >> sys.stderr, 'error: variadic arguments must be last: {}'.format(new_arg.raw_name)
-            sys.exit(0)
-
-        if parsed_arg_list[name]:
-            parsed_arg_list[name].append(raw_arg)
-        else:
-            parsed_arg_list[name] = [raw_arg]
 
     def normalize(self, raw_args):
         new_args = []
