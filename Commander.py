@@ -1,67 +1,7 @@
+from Argument import Argument
+from Option import Option
 import sys
 import re
-
-class Option(object):
-    def __init__(self, raw_flags, description, default, parse):
-        super(Option, self).__init__()
-        self.raw_flags = raw_flags
-        self.description = description
-        self.default = default
-        self.arguments = []
-
-        parts = re.split(r'[, |]+', raw_flags)
-
-        for part in parts:
-            if part[:2] == '--':
-                self.long = part
-            elif part[0] == '-':
-                self.short = part
-            else:
-                self.arguments.append(Argument(part, parse))
-
-        self.isFlag = len(self.arguments) == 0
-
-        name = re.split(r'[^a-zA-Z0-9]+', self.long[2:])
-        name = map(lambda s: s.lower(), name)
-        self.name = '_'.join(name)
-
-    def flag_match(self, flag):
-        return flag == self.short or flag == self.long
-
-    def has_required_arg(self):
-        return any(arg.required for arg in self.arguments)
-
-    def __str__(self):
-        return str((self.short, self.long, self.name))
-
-    def __repr__(self):
-        return str(self)
-
-
-class Argument(object):
-    def __init__(self, raw_name, parse):
-        super(Argument, self).__init__()
-
-        if not re.match(r'^[\[\<][a-zA-Z0-9]+(?:\.\.\.)?[\]\>]$', raw_name):
-            print >> sys.stderr, 'error: invalid argument description: {}'.format(raw_name)
-
-        self.raw_name = raw_name
-        self.parse = parse
-        self.required = '<' in raw_name
-        self.optional = '[' in raw_name
-        self.variadic = '...' in raw_name
-
-        if self.variadic:
-            self.name = raw_name[1:-4]
-        else:
-            self.name = raw_name[1:-1]
-
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return str(self)
-        
 
 class Program(object):
     def __init__(self):
