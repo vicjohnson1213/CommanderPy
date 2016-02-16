@@ -5,13 +5,10 @@
 - Readme and comments
 - Git style subcommands
     - `git commit [options]`
-- Add a help function so the user can set their own help flag.
 - Unit tests
+- add option to pass a function to help to execute on a help flag instead of the default
 
 ## Maintenance
-
-- Break `Option` and `Argument` into their own files.
-    - I think this could help for the git style commands.
 
 ## Bugs
 
@@ -21,3 +18,6 @@
 
 - Options can only have one expected argument.  This should be generalized to as many arguments as the user wants.
 - There is a lot of duplicated code around variadic arguments for options and regular options.. Find a way to consolidate that.
+- Break `Option` and `Argument` into their own files.
+    - I think this could help for the git style commands.
+- Add a help function so the user can set their own help flag.

@@ -13,14 +13,14 @@ class Program(object):
         super(Program, self).__init__()
         self.possible_options = []
         self.possible_arguments = []
-        self.unknown_args = []
+        self.unknown_arguments = []
         self.options = {}
         self.arguments = {}
         self.usage_str = ''
         self.name_str = ''
         self.description_str = ''
         self.allow_unknown = False
-        self.addHelp = True
+        self.help_opt = Option('-h, --help', 'Display this help and usage information.', None, None)
 
     def usage(self, usage):
         """ Sets the usage string for the program """
@@ -61,9 +61,17 @@ class Program(object):
         self.allow_unknown = True
         return self
 
-    def noHelp(self):
-        """ If called, Commander will not add a help option to the options list """
-        self.addHelp = False
+    # def no_help(self):
+    #     """ If called, Commander will not add a help option to the options list """
+    #     self.add_help = False
+    #     return self
+
+    def help(self, flags, description=None):
+        if flags:
+            self.help_opt = Option(flags, description, None, None)
+        elif flags == None:
+            self.help_opt = None
+
         return self
 
     def parse(self, raw_args):
@@ -106,8 +114,8 @@ class Program(object):
         # Remove the command name from the ags list
         raw_args = self.normalize(raw_args[1:])
 
-        if self.addHelp:
-            self.possible_options.append(Option('-h, --help', 'Display this help and usage information.', None, None))
+        if self.help_opt:
+            self.possible_options.append(self.help_opt)
 
             if '-h' in raw_args:
                 self.displayHelp()
@@ -128,7 +136,8 @@ class Program(object):
                 # add it to a list of unknown options
                 if not opt:
                     if self.allow_unknown:
-                        self.unknown_args.append(raw_arg)
+                        self.unknown_arguments.append(raw_arg)
+                        continue
                     else:
                         print >> sys.stderr, 'error: unknown option: {}'.format(raw_arg)
                         sys.exit(1)
@@ -174,24 +183,25 @@ class Program(object):
 
                 else:
                     raw_arg = parse_arg(raw_arg, last_opt.arguments[0].parse)
-
                     # Check for a variadic argument to the option and parse accordingly
                     if last_opt.arguments[0].variadic:
                         set_variadic_argument(raw_arg, last_opt.name, self.options, last_opt.arguments)
                     else:
                         self.options[last_opt.name] = raw_arg
+                        last_opt.arguments.pop(0)
 
         # Checks if the last argument was variadic, if it was then check if its
         # arguments were fulfilled
-        last_arg = self.possible_arguments[0]
-        last_arg_fulfilled = (len(self.possible_arguments) > 0 and
-            last_arg.variadic and
-            self.arguments[last_arg.name] and
-            len(self.arguments[last_arg.name]) > 0)
+        if len(self.possible_arguments) > 0:
+            last_arg = self.possible_arguments[0]
+            last_arg_fulfilled = (len(self.possible_arguments) > 0 and
+                last_arg.variadic and
+                self.arguments[last_arg.name] and
+                len(self.arguments[last_arg.name]) > 0)
 
-        # If the last argument was variadic and was fulfilled, then remove it.
-        if last_arg_fulfilled:
-            self.possible_arguments.pop(0)
+            # If the last argument was variadic and was fulfilled, then remove it.
+            if last_arg_fulfilled:
+                self.possible_arguments.pop(0)
 
         # If the program still expects any required arguments, error
         if self.has_required_arg():
@@ -212,7 +222,7 @@ class Program(object):
             arg = raw_args.pop(0)
 
             if arg[:2] == '--':
-                new_args += arg[].split('=')
+                new_args += arg.split('=')
 
             elif arg[0] == '-':
                 # Remove the first `-` and add a new `-` to each letter
