@@ -124,6 +124,16 @@ class Program(object):
             else:
                 parsed_arg_list[name] = [raw_arg]
 
+        def parse_arg(raw_arg, parse):
+            if parse:
+                try:
+                    return parse(raw_arg)
+                except:
+                    print >> sys.stderr, 'error: could not parse argument: {}'.format(raw_arg)
+                    sys.exit(1)
+            else:
+                return raw_arg
+
         raw_args = self.normalize(raw_args[1:])
 
         if self.addHelp:
@@ -168,6 +178,8 @@ class Program(object):
 
                 if not last_opt or len(last_opt.arguments) == 0:
                     new_arg = self.possible_arguments[0]
+                    raw_arg = parse_arg(raw_arg, new_arg.parse)
+
 
                     if new_arg.variadic:
                         set_variadic_argument(raw_arg, new_arg.name, self.arguments, self.possible_arguments)
@@ -176,6 +188,8 @@ class Program(object):
                         self.possible_arguments.pop(0)
 
                 else:
+                    raw_arg = parse_arg(raw_arg, last_opt.arguments[0].parse)
+
                     if last_opt.arguments[0].variadic:
                         set_variadic_argument(raw_arg, last_opt.name, self.options, last_opt.arguments)
                     else:

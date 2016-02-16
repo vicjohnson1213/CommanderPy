@@ -6,6 +6,7 @@
 - Git style subcommands
     - `git commit [options]`
 - Add a help function so the user can set their own help flag.
+- Unit tests
 
 ## Maintenance
 
