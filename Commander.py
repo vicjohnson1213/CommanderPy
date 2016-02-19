@@ -69,16 +69,46 @@ class Program(object):
         self.allow_unknown = True
         return self
 
-    # def no_help(self):
-    #     """ If called, Commander will not add a help option to the options list """
-    #     self.add_help = False
-    #     return self
+    def help(self, omit=False, flags='-h, --help', description=None, display_help=None):
+        """
+        Alter the behavior of the help flag.  Users can change the flags, description,
+        function to execute, or omit the help option alltogether.
+        """
+        def default_help():
+            """ Displays help and usage information to the user and exits """
+            args = self.arguments.values()
 
-    def help(self, flags, description=None):
-        if flags:
+            flags = []
+            descs = []
+
+            max_len = 0
+
+            for opt in self.possible_options:
+                flags.append(opt.raw_flags)
+                descs.append(opt.description)
+                max_len = max(max_len, len(opt.raw_flags))
+
+            print
+
+            if self.usage_str:
+                print 'USAGE: {}'.format(self.usage_str)
+                print
+
+            if self.description_str:
+                print self.description_str
+                print
+
+            print 'OPTIONS:'
+            for fs, d in zip(flags, descs):
+                print '  {}'.format(fs).ljust(max_len + 5) + (d if d else '')
+            print
+
+        if not omit:
             self.help_opt = Option(flags, description, None, None)
-        elif flags == None:
+        else:
             self.help_opt = None
+
+        self.display_help = display_help or default_help
 
         return self
 
@@ -125,8 +155,8 @@ class Program(object):
         if self.help_opt:
             self.possible_options.append(self.help_opt)
 
-            if '-h' in raw_args:
-                self.displayHelp()
+            if self.help_opt.short in raw_args or self.help_opt.long in raw_args:
+                self.display_help()
                 sys.exit(0)
 
         # Keep track of the previous option to properly assign names to arguments
@@ -242,32 +272,3 @@ class Program(object):
                 new_args.append(arg)
 
         return new_args
-
-    def displayHelp(self):
-        """ Displays help and usage information to the user and exits """
-        args = self.arguments.values()
-
-        flags = []
-        descs = []
-
-        max_len = 0
-
-        for opt in self.possible_options:
-            flags.append(opt.raw_flags)
-            descs.append(opt.description)
-            max_len = max(max_len, len(opt.raw_flags))
-
-        print
-
-        if self.usage_str:
-            print 'USAGE: {}'.format(self.usage_str)
-            print
-
-        if self.description_str:
-            print self.description_str
-            print
-
-        print 'OPTIONS:'
-        for fs, d in zip(flags, descs):
-            print '  {}'.format(fs).ljust(max_len + 5) + d
-        print

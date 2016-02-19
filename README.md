@@ -26,7 +26,6 @@ Information about the program can be given and will be shown by default when the
 | ----------------------------------------- | ------------------------------------------ |
 | `program.usage('usage')`                  | Shows the preferred usage of the program.  |
 | `program.description('some description')` | Shows a description of the program.        |
-| `program.help('-h, --help')`              | Overrides the default help flag. (Set to `None` to omit the help option) |
 
 ### Adding Arguments
 
@@ -147,5 +146,39 @@ The ouput of this program for various command line arguments is as follows:
 | Command                           | Output               |
 | --------------------------------- | -------------------- |
 | `python program.py -pfo`          | `result: []`         |
-| `python program.py -r`            | `result: [-r]`       |
-| `python program.py -pfo --random` | `result: [--random]` |
+| `python program.py -r`            | `result: ['-r']`       |
+| `python program.py -pfo --random` | `result: ['--random']` |
+
+### Customizing the Help Option
+
+A program allows overriding the help via the `help` function.  The `help` function allows a user to specify custom flags, a custom description message, a custom function to execute, or to omit the help option alltogether.
+
+*Example:*
+
+```python
+from Commander import Program
+import sys
+
+def my_help():
+    print 'Some custom help message or perfrom some other help actions.'
+
+# To omit the help option:
+program = (Program()
+    .help(omit=True)
+    .parse(sys.argv))
+
+# To change the flags:
+program = (Program()
+    .help(flags='-c, --custom')
+    .parse(sys.argv))
+
+# To change the description message:
+program = (Program()
+    .help(description='Some help description')
+    .parse(sys.argv))
+
+# To call a custom help function:
+program = (Program()
+    .help(display_help=my_help)
+    .parse(sys.argv))
+```

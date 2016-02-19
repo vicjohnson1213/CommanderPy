@@ -9,9 +9,6 @@ program = (Program()
         description='Some description for waht this option does')
     .option('--optional [optionalarg]', parse=(lambda s: s.lower()))
     .option('-f, --force', description='Force execution')
-    .help(None)
-    .allow_unknown_options()
-
     .parse(sys.argv))
 
 print 'opts: ', program.options
