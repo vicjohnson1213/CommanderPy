@@ -39,7 +39,15 @@ class Program(object):
         """
         opt = Option(flags, description, default, parse)
         self.possible_options.append(opt)
-        self.options[opt.name] = default or None
+
+        if len(opt.arguments) > 0:
+            self.options[opt.name] = {}
+
+            for arg in opt.arguments:
+                self.options[opt.name][arg.name] = default or None
+        else:
+            self.options[opt.name] = False
+
         return self
 
     def argument(self, arg, default=None, parse=None):
@@ -149,7 +157,7 @@ class Program(object):
                     len(last_opt.arguments) > 0 and
                     last_opt.arguments[0].variadic and
                     self.options[last_opt.name] and
-                    len(self.options[last_opt.name]) > 0)
+                    len(self.options[last_opt.name][last_opt.arguments[0].name]) > 0)
 
                 if last_opt and last_opt.has_required_arg() and not last_opt_fulfilled:
                     print >> sys.stderr, 'error: option missing required argument: {}'.format(last_opt.long)
@@ -183,11 +191,12 @@ class Program(object):
 
                 else:
                     raw_arg = parse_arg(raw_arg, last_opt.arguments[0].parse)
+
                     # Check for a variadic argument to the option and parse accordingly
                     if last_opt.arguments[0].variadic:
-                        set_variadic_argument(raw_arg, last_opt.name, self.options, last_opt.arguments)
+                        set_variadic_argument(raw_arg, last_opt.arguments[0].name, self.options[last_opt.name], last_opt.arguments)
                     else:
-                        self.options[last_opt.name] = raw_arg
+                        self.options[last_opt.name][last_opt.arguments[0].name] = raw_arg
                         last_opt.arguments.pop(0)
 
         # Checks if the last argument was variadic, if it was then check if its

@@ -4,14 +4,14 @@ import sys
 program = (Program()
     .description('Some description for this program')
     .usage('python tester.py [options] <first> <second...>')
-    .argument('<first>')
-    .option('-t, --thing [requiredArg] [requiredArg2]',
-        description='Some description for waht this option does',
-        parse=list)
+    .argument('<argument>')
+    .option('-t, --thing <thingarg>',
+        description='Some description for waht this option does')
+    .option('--optional [optionalarg]', parse=(lambda s: s.lower()))
+    .option('-f, --force', description='Force execution')
     .help(None)
     .allow_unknown_options()
 
-    .option('-f, --force', description='Force execution')
     .parse(sys.argv))
 
 print 'opts: ', program.options

@@ -45,7 +45,7 @@ program = (Program()
     .argument('[argument2]', default='default value')
     .parse(sys.argv))
 
-print(program.arguments)
+print program.arguments 
 
 ```
 
@@ -57,37 +57,13 @@ The output of this program for various command line arguments is as follows:
 | `python program.py first`        | `{'argument1': 'first', 'argument2': 'default value'}`     |
 | `python program.py first second` | `{'argument1': 'first', 'argument2': 'second'}`            |
 
-### Argument Parsing
-
-By passing a function to the program's `argument` function, command line arguments van be automatically parsed.
-
-*Example:*
-
-```python
-from Commander import Program
-import sys
-
-program = (Program()
-    .argument('<number>', float)
-    .parse(sys.argv))
-
-print('result:', program.arguments['number'] * 10)
-```
-
-The ouput of this program for various command line arguments is as follows:
-
-| Command                  | Output        |
-| ------------------------ | ------------- |
-| `python program.py 1.5`  | `result: 15`  |
-| `python program.py 10`   | `result: 100` |
-
 ### Adding Options
 
 Options can be added to the program via the `option` function of a program.  Options can have a short name (a hyphen followed by a single character), a long name (two hyphens followed by any combinations of letters, numbers, underscores, and hyphens), and expected arguments (required or optional).
 
-The arguments passed to an option will be available through `program.options['option_name']`, which is a dictionary with the snake-cased argument name as the key.  Option arguments also accept default values and parse functions 
+The arguments passed to an option will be available through `program.options['option_name']`, which is a dictionary with the snake-cased argument name as the key.  Option arguments also accept default values and parse functions.
 
-If an option has no arguments, it is considered a flag and will have a value of `True` if that flag is present and `None` otherwise.
+If an option has no arguments, it is considered a flag and will have a value of `True` if that flag is present and `False` otherwise.
 
 *Example:*
 
@@ -96,16 +72,80 @@ from Commander import Program
 import sys
 
 program = (Program()
-    .option('-o, --option', description='A flag option.')
-    .option('-t, --thing <argument>', description='An option with an argument')
+    .option('-r, --regular', description='A description of the option')
+    .option('-t, --thing <argument>')
+    .option('--optional [optionalArg]')
+    .option('-d, --default [defaultArg]', default='some value')
     .parse(sys.argv))
 
-print('result:', program.options)
+print 'result:', program.options
 ```
 
 The ouput of this program for various command line arguments is as follows:
 
-| Command                        | Output                                       |
-| ------------------------------ | -------------------------------------------- |
-| `python program.py -o`         | `result: {'option': True`}                   |
-| `python program.py -t value`   | `result: {'thing': { 'argument': 'value' }}` |
+| Command                        | Output                                                    |
+| ------------------------------ | --------------------------------------------------------- |
+| `python program.py -o`         | `result: {'regular': True`}                               |
+| `python program.py -t`         | `error: error: option missing required argument: --thing` |
+| `python program.py -t value`   | `result: {'thing': { 'argument': 'value' }}`              |
+| `python program.py --optional` | `result: {'optional': { 'optionalArg': 'value' }}`        |
+| `python program.py -d`         | `result: {'default': { 'defaultArg': 'some value' }}`     |
+
+*Note:* Some key/value pairs have been omitted from the output, only relevant information is shown in the output.
+
+### Argument Parsing
+
+A program's `argument` and `option` functions accept a parse function that will be executed with any of the command line arguments associated with that specified argument or option.
+
+*Example:*
+
+```python
+from Commander import Program
+import sys
+
+program = (Program()
+    .argument('[number]', parse=float)
+    .option('-p, --parsed <parsedArg>', parse=(lambda s: s.lower()))
+    .parse(sys.argv))
+
+print 'result:', program.arguments['number'] * 10
+print 'result:', program.options['parsed']['parsedArg']
+```
+
+The ouput of this program for various command line arguments is as follows:
+
+| Command                         | Output           |
+| ------------------------------- | ---------------- |
+| `python program.py 1.5`         | `result: 15.0`   |
+| `python program.py 10`          | `result: 100.0`  |
+| `python program.py -p STRING`   | `result: string` |
+
+### Handling Unexpected/Unknown Options
+
+A program offers a function to allow unknown options, handily called `allow_unknown_options`.  Calling this function will prevent a program from printing an error and exiting upon parsing an unknown option.
+
+If unknown options are allowed, they will be accumulated in `program.unknown_arguments`
+
+*Example:*
+
+```python
+from Commander import Program
+import sys
+
+program = (Program()
+    .option('-p, --parsed')
+    .option('-f, --force')
+    .option('-o, --other')
+    .allow_unknown_options()
+    .parse(sys.argv))
+
+print 'result:', program.unknown_options
+```
+
+The ouput of this program for various command line arguments is as follows:
+
+| Command                           | Output               |
+| --------------------------------- | -------------------- |
+| `python program.py -pfo`          | `result: []`         |
+| `python program.py -r`            | `result: [-r]`       |
+| `python program.py -pfo --random` | `result: [--random]` |

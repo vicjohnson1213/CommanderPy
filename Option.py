@@ -11,6 +11,7 @@ class Option(object):
         self.description = description
         self.default = default
         self.arguments = []
+        self.short = None
 
         # Split the option into its short and long names, as well as any arguments
         # that it might take
