@@ -12,6 +12,7 @@
 
 ## Bugs
 
+- If there are two arguments for an option only the last one is saved.  this should be fixed by giving each option an array of `Argument`s.  This would require an option to return the option not the program so there would need to be a better way to terminate an option..
 - If the last option was optional and there is a required argument left and there is only one more element left in `raw_args` then give the last `raw_arg` to the argument, not the option
 
 ### Fixed Buges and Completed Maintenance

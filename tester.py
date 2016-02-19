@@ -5,7 +5,7 @@ program = (Program()
     .description('Some description for this program')
     .usage('python tester.py [options] <first> <second...>')
     .argument('<first>')
-    .option('-t, --thing [requiredArg]',
+    .option('-t, --thing [requiredArg] [requiredArg2]',
         description='Some description for waht this option does',
         parse=list)
     .help(None)
