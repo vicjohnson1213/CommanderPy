@@ -22,10 +22,10 @@ program = Program()
 
 Information about the program can be given and will be shown by default when the user uses the `-h` flag.  The following options are available:
 
-| Function                                  | What it does                               |
-| ----------------------------------------- | ------------------------------------------ |
-| `program.usage('usage')`                  | Shows the preferred usage of the program.  |
-| `program.description('some description')` | Shows a description of the program.        |
+| Function                                  | What it does                                           |
+| ----------------------------------------- | ------------------------------------------------------ |
+| `program.usage('usage')`                  | Sets the preferred usage string of the program.        |
+| `program.description('some description')` | sets the preferred description string of the program.  |
 
 ### Adding Arguments
 
@@ -118,6 +118,38 @@ The ouput of this program for various command line arguments is as follows:
 | `python program.py 1.5`         | `result: 15.0`   |
 | `python program.py 10`          | `result: 100.0`  |
 | `python program.py -p STRING`   | `result: string` |
+
+*Note:* Some output has been omitted, only relevant information is shown in the output.
+
+### Variadic Arguments
+
+A program can be configured to accept an arbitrary number of values that will be made available via either `program.options['option_name']['argument_name']` or `program.arguments['argument_name']`.  This can be done by adding `...` to the end of an argument name.
+
+If a variadic argument is present, the program will consume available arguments until there is another option, or there are no more options.
+
+*Example:*
+
+```python
+from Commander import Program
+import sys
+
+program = (Program()
+    .argument('[arg...]')
+    .option('-o, --option [opt...]')
+    .parse(sys.argv))
+
+print 'result:', program.arguments['arg']
+print 'result:', program.options['optiom']['opt']
+```
+
+The ouput of this program for various command line arguments is as follows:
+
+| Command                         | Output                      |
+| ------------------------------- | --------------------------- |
+| `python program.py 1 2 3 4 5`   | `result: [1,2,3,4,5]`       |
+| `python program.py -p a b c d`  | `result: ['a','b','c','d']` |
+
+*Note:* Some output has been omitted, only relevant information is shown in the output.
 
 ### Handling Unexpected/Unknown Options
 
