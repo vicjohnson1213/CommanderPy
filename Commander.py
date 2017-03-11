@@ -19,8 +19,9 @@ class Program(object):
         self.usage_str = ''
         self.name_str = ''
         self.description_str = ''
-        self.allow_unknown = False
+        self.allow_unknown_options = False
         self.help_opt = Option('-h, --help', 'Display this help and usage information.', None, None)
+        self.display_help = self.default_help
 
     def usage(self, usage):
         """ Sets the usage string for the program """
@@ -64,9 +65,9 @@ class Program(object):
         """ Checks whether any of the unsatisfied arguments are required """
         return any(arg.required for arg in self.possible_arguments)
 
-    def allow_unknown_options(self):
+    def allow_unknown_options_options(self):
         """ If called, the program will not exit on unknown options """
-        self.allow_unknown = True
+        self.allow_unknown_options = True
         return self
 
     def help(self, omit=False, flags='-h, --help', description=None, display_help=None):
@@ -74,43 +75,50 @@ class Program(object):
         Alter the behavior of the help flag.  Users can change the flags, description,
         function to execute, or omit the help option alltogether.
         """
-        def default_help():
-            """ Displays help and usage information to the user and exits """
-            args = self.arguments.values()
-
-            flags = []
-            descs = []
-
-            max_len = 0
-
-            for opt in self.possible_options:
-                flags.append(opt.raw_flags)
-                descs.append(opt.description)
-                max_len = max(max_len, len(opt.raw_flags))
-
-            print
-
-            if self.usage_str:
-                print 'USAGE: {}'.format(self.usage_str)
-                print
-
-            if self.description_str:
-                print self.description_str
-                print
-
-            print 'OPTIONS:'
-            for fs, d in zip(flags, descs):
-                print '  {}'.format(fs).ljust(max_len + 5) + (d if d else '')
-            print
 
         if not omit:
             self.help_opt = Option(flags, description, None, None)
         else:
             self.help_opt = None
 
-        self.display_help = display_help or default_help
+        self.display_help = display_help
 
         return self
+
+    def no_help(self):
+        self.help_opt = None
+
+        return self
+
+    def default_help(self):
+        """ Displays help and usage information to the user and exits """
+        args = self.arguments.values()
+
+        flags = []
+        descs = []
+
+        max_len = 0
+
+        for opt in self.possible_options:
+            flags.append(opt.raw_flags)
+            descs.append(opt.description)
+            max_len = max(max_len, len(opt.raw_flags))
+
+        print
+
+        if self.usage_str:
+            print 'USAGE: {}'.format(self.usage_str)
+            print
+
+        if self.description_str:
+            print self.description_str
+            print
+
+        print 'OPTIONS:'
+        for flag, desc in zip(flags, descs):
+            print '  {}'.format(flag).ljust(max_len + 5) + (desc if desc else '')
+            
+        print
 
     def parse(self, raw_args):
         """
@@ -173,7 +181,7 @@ class Program(object):
                 # If the user didn't specify this option, then either error or
                 # add it to a list of unknown options
                 if not opt:
-                    if self.allow_unknown:
+                    if self.allow_unknown_options:
                         self.unknown_arguments.append(raw_arg)
                         continue
                     else:
